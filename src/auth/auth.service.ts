@@ -2,11 +2,14 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../user/user.service';
-import { User } from '../user/entities/user.entity';
+import { User, UserStatus } from '../user/entities/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
-import { AuthResponse } from './interfaces/auth-response.interface';
+import {
+  AuthResponse,
+  RegisterResponse,
+} from './interfaces/auth-response.interface';
 
 @Injectable()
 export class AuthService {
@@ -17,13 +20,22 @@ export class AuthService {
 
   /**
    * Registrar un nuevo usuario
-   * Crea el usuario y retorna un token JWT
+   * Crea una cuenta pendiente de aprobación
    */
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
+  async register(registerDto: RegisterDto): Promise<RegisterResponse> {
     // Crear el usuario usando el servicio de usuarios
     const user: User = await this.userService.create(registerDto);
 
-    return await this.buildAuthResponse(user);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive,
+      },
+      message: 'Cuenta creada y pendiente de aprobación por un administrador',
+    };
   }
 
   /**
@@ -53,7 +65,7 @@ export class AuthService {
 
     // Verificar si el usuario está activo (después de validar la contraseña,
     // para no revelar el estado de cuentas ajenas)
-    if (!user.isActive) {
+    if (user.isActive !== UserStatus.ACTIVO) {
       throw new UnauthorizedException('Usuario inactivo');
     }
 
@@ -75,7 +87,7 @@ export class AuthService {
 
     const user: User | null = await this.userService.findById(payload.sub);
 
-    if (!user || !user.isActive) {
+    if (!user || user.isActive !== UserStatus.ACTIVO) {
       throw new UnauthorizedException('Token inválido');
     }
 

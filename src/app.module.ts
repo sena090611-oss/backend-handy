@@ -4,6 +4,10 @@ import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { MunicipioModule } from './municipio/municipio.module';
+import { PortafolioModule } from './portafolio/portafolio.module';
+import { SolicitudDeServicioModule } from './solicitud_de_servicio/solicitud_de_servicio.module';
+import { ZonaModule } from './zona/zona.module';
+import { TrabajadorModule } from './trabajador/trabajador.module';
 
 @Module({
   imports: [
@@ -36,6 +40,10 @@ import { MunicipioModule } from './municipio/municipio.module';
     UserModule,
     AuthModule,
     MunicipioModule,
+    PortafolioModule,
+    SolicitudDeServicioModule,
+    ZonaModule,
+    TrabajadorModule,
   ],
 })
 export class AppModule {}

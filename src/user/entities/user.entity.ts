@@ -4,11 +4,27 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
+// Importamos la entidad Municipio para crear la relación FK "id_municipio"
+import { Municipio } from '../../municipio/entities/municipio.entity';
+
+export enum UserRole {
+  ADMIN = 'admin',
+  CLIENTE = 'cliente',
+  TRABAJADOR = 'trabajador',
+}
+
+export enum UserStatus {
+  PENDIENTE = 'pendiente',
+  ACTIVO = 'activo',
+  SUSPENDIDO = 'suspendido',
+}
 
 // Decorador @Entity define que esta clase es una entidad de base de datos
-@Entity('users')
+@Entity('usuarios')
 export class User {
   // Clave primaria auto-incremental
   @PrimaryGeneratedColumn()
@@ -27,15 +43,15 @@ export class User {
 
   // Nombre completo del usuario
   @Column({ nullable: false })
-  fullName: string;
+  fullName: string; // alias: nombre
 
-  // Estado activo del usuario
-  @Column({ default: true })
-  isActive: boolean;
+  // Estado del usuario
+  @Column({ type: 'enum', enum: UserStatus, default: UserStatus.PENDIENTE })
+  isActive: UserStatus;
 
-  // Rol del usuario (por defecto 'user')
-  @Column({ default: 'user' })
-  role: string;
+  // Rol del usuario
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.CLIENTE })
+  role: UserRole;
 
   // Fecha de creación automática
   @CreateDateColumn()
@@ -44,4 +60,16 @@ export class User {
   // Fecha de actualización automática
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // ---------------------------------------------------------------
+  // Relación con la entidad Municipio
+  // ---------------------------------------------------------------
+  // * Cada usuario pertenece a un municipio.
+  // * La columna en la tabla "usuarios" se llama "id_municipio" y actúa como
+  //   clave foránea a la tabla "municipios".
+  // * "eager: true" permite que, al cargar un usuario, TypeORM incluya
+  //   automáticamente el municipio asociado (útil para los DTOs y respuestas).
+  @ManyToOne(() => Municipio, { eager: true })
+  @JoinColumn({ name: 'id_municipio' })
+  municipio: Municipio;
 }

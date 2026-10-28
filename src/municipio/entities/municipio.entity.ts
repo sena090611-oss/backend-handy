@@ -1,4 +1,11 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { User } from '../../user/entities/user.entity';
+import { Zona } from '../../zona/entities/zona.entity';
 
 export const MUNICIPIOS_INICIALES: ReadonlyArray<{
   id: number;
@@ -43,4 +50,10 @@ export class Municipio {
 
   @Column({ nullable: false })
   nombre: string;
+
+  @OneToMany(() => User, (user) => user.municipio)
+  usuarios: User[];
+
+  @OneToMany(() => Zona, (zona) => zona.municipio)
+  zonas: Zona[];
 }

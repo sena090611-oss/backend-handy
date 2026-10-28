@@ -12,7 +12,10 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
-import { AuthResponse } from './interfaces/auth-response.interface';
+import {
+  AuthResponse,
+  RegisterResponse,
+} from './interfaces/auth-response.interface';
 import { User } from '../user/entities/user.entity';
 
 @Controller('auth')
@@ -24,7 +27,7 @@ export class AuthController {
    * Registrar un nuevo usuario (responde 201 Created)
    */
   @Post('register')
-  register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
+  register(@Body() registerDto: RegisterDto): Promise<RegisterResponse> {
     return this.authService.register(registerDto);
   }
 

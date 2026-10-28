@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UserService } from '../../user/user.service';
-import { User } from '../../user/entities/user.entity';
+import { User, UserStatus } from '../../user/entities/user.entity';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
 @Injectable()
@@ -37,7 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     // Verificar si el usuario está activo
-    if (!user.isActive) {
+    if (user.isActive !== UserStatus.ACTIVO) {
       throw new UnauthorizedException('Usuario inactivo');
     }
 

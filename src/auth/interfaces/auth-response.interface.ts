@@ -6,8 +6,13 @@ export interface AuthUser {
   role: string;
 }
 
-// Respuesta de los endpoints /auth/register y /auth/login
+// Respuesta del endpoint /auth/login
 export interface AuthResponse {
   user: AuthUser;
   token: string;
+}
+
+export interface RegisterResponse {
+  user: AuthUser & { isActive: string };
+  message: string;
 }
