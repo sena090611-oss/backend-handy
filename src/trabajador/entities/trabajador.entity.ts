@@ -3,12 +3,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Municipio } from '../../municipio/entities/municipio.entity';
 import { User } from '../../user/entities/user.entity';
 import { Zona } from '../../zona/entities/zona.entity';
+import { Disponibilidad } from '../../disponibilidad/entities/disponibilidad.entity';
 
 export enum EstadoTrabajador {
   PENDIENTE = 'PENDIENTE',
@@ -90,4 +92,10 @@ export class Trabajador {
 
   @Column({ name: 'recomendaciones', type: 'text', nullable: true })
   recomendaciones: string | null;
+
+  @OneToMany(
+    () => Disponibilidad,
+    (disponibilidad) => disponibilidad.trabajador,
+  )
+  disponibilidades: Disponibilidad[];
 }

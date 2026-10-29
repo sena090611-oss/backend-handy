@@ -16,6 +16,7 @@ import {
   EstadoTrabajador,
   Trabajador,
 } from './entities/trabajador.entity';
+import { Calificacion } from '../calificacion/entities/calificacion.entity';
 
 @Injectable()
 export class TrabajadorService {
@@ -28,6 +29,9 @@ export class TrabajadorService {
     private readonly zonaRepository: Repository<Zona>,
     @InjectRepository(Municipio)
     private readonly municipioRepository: Repository<Municipio>,
+    // Repositorio para acceder a las calificaciones y calcular promedios
+    @InjectRepository(Calificacion)
+    private readonly calificacionRepository: Repository<Calificacion>,
   ) {}
 
   async create(dto: CreateTrabajadorDto): Promise<Trabajador> {
@@ -73,7 +77,8 @@ export class TrabajadorService {
     });
   }
 
-  async findOne(id: number): Promise<Trabajador> {
+  // Obtiene un trabajador y agrega su promedio de calificación
+  async findOne(id: number): Promise<Trabajador & { promedioCalificacion?: number }> {
     const trabajador = await this.trabajadorRepository.findOne({
       where: { id },
       relations: { usuario: true, zona: true, municipio: true },
@@ -81,7 +86,16 @@ export class TrabajadorService {
     if (!trabajador) {
       throw new NotFoundException(`Trabajador con ID ${id} no encontrado`);
     }
-    return trabajador;
+    // Consulta el promedio de puntuaciones de sus calificaciones
+    const result = await this.calificacionRepository
+      .createQueryBuilder('calif')
+      .innerJoin('calif.solicitud', 'sol')
+      .where('sol.id_trabajador = :trabajadorId', { trabajadorId: id })
+      .select('AVG(calif.puntuacion)', 'avg')
+      .getRawOne();
+    const promedio = Number(result?.avg) || 0; // si no hay calificaciones, 0
+    // Devuelve el trabajador con la nueva propiedad promedioCalificacion
+    return { ...trabajador, promedioCalificacion: promedio };
   }
 
   async update(id: number, dto: UpdateTrabajadorDto): Promise<Trabajador> {
