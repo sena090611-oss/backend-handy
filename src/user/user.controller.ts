@@ -18,13 +18,22 @@ import { User } from './entities/user.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
 // Los guards y el rol aplican a todas las rutas del controlador
 // Controlador REST para la entidad User.
 // Cada endpoint está protegido con JwtAuthGuard (requiere token)
 // y con RolesGuard (verifica que el usuario tenga el rol necesario).
 @Controller('users')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+@ApiTags('Usuarios')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -32,6 +41,7 @@ export class UserController {
   // CREATE – solo Admin puede crear usuarios directamente.
   @Post()
   @Roles('admin')
+  @ApiCreatedResponse({ type: User })
   create(@Body() createUserDto: CreateUserDto): Promise<User> {
     return this.userService.create(createUserDto);
   }
@@ -42,6 +52,7 @@ export class UserController {
   // ---------------------------------------------------------------
   @Get()
   @Roles('trabajador', 'cliente', 'admin')
+  @ApiOkResponse({ type: [User] })
   findAll(): Promise<User[]> {
     return this.userService.findAll();
   }
@@ -52,6 +63,8 @@ export class UserController {
   // ---------------------------------------------------------------
   @Get(':id')
   @Roles('trabajador', 'cliente', 'admin')
+  @ApiParam({ name: 'id', example: 5, description: 'ID del usuario' })
+  @ApiOkResponse({ type: User })
   findOne(@Param('id', ParseIntPipe) id: number): Promise<User> {
     return this.userService.findOne(id);
   }
@@ -61,6 +74,8 @@ export class UserController {
   // ---------------------------------------------------------------
   @Patch(':id')
   @Roles('admin')
+  @ApiParam({ name: 'id', example: 5, description: 'ID del usuario' })
+  @ApiOkResponse({ type: User })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,

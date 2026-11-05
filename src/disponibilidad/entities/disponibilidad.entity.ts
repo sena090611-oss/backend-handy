@@ -7,6 +7,7 @@ import {
   Unique,
 } from 'typeorm';
 import { Trabajador } from '../../trabajador/entities/trabajador.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 export enum Jornada {
   MANANA = 'MAÑANA',
@@ -17,9 +18,11 @@ export enum Jornada {
 @Entity('disponibilidad')
 @Unique('UQ_disponibilidad_trabajador_jornada', ['trabajador', 'jornada'])
 export class Disponibilidad {
+  @ApiProperty({ example: 7 })
   @PrimaryGeneratedColumn()
   id: number;
 
+  @ApiProperty({ enum: Jornada, example: Jornada.MANANA })
   @Column({ type: 'enum', enum: Jornada })
   jornada: Jornada;
 

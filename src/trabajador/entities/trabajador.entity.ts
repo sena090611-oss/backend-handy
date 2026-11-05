@@ -11,6 +11,8 @@ import { Municipio } from '../../municipio/entities/municipio.entity';
 import { User } from '../../user/entities/user.entity';
 import { Zona } from '../../zona/entities/zona.entity';
 import { Disponibilidad } from '../../disponibilidad/entities/disponibilidad.entity';
+import { DetallePortafolio } from '../../detalle_portafolio/detalle_portafolio/entities/detalle-portafolio.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 export enum EstadoTrabajador {
   PENDIENTE = 'PENDIENTE',
@@ -36,6 +38,7 @@ export enum NivelFormacion {
 
 @Entity('trabajador')
 export class Trabajador {
+  @ApiProperty({ example: 3 })
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -51,27 +54,35 @@ export class Trabajador {
   @JoinColumn({ name: 'id_municipio' })
   municipio: Municipio;
 
+  @ApiProperty({ enum: TipoDocumento, example: TipoDocumento.CC })
   @Column({ name: 'tipo_doc', type: 'enum', enum: TipoDocumento })
   tipoDoc: TipoDocumento;
 
+  @ApiProperty({ example: '1234567890' })
   @Column({ name: 'num_doc', unique: true })
   numDoc: string;
 
+  @ApiProperty({ example: 'Juan' })
   @Column({ name: 'nombres' })
   nombres: string;
 
+  @ApiProperty({ example: 'Gómez' })
   @Column({ name: 'apellidos' })
   apellidos: string;
 
+  @ApiProperty({ example: 'Calle 10 # 5-20' })
   @Column({ name: 'direccion' })
   direccion: string;
 
+  @ApiProperty({ example: 'juan.gomez@handy.com' })
   @Column({ name: 'email', unique: true })
   email: string;
 
+  @ApiProperty({ example: '3001234567' })
   @Column({ name: 'telefono', type: 'varchar', length: 10 })
   telefono: string;
 
+  @ApiProperty({ enum: EstadoTrabajador, example: EstadoTrabajador.ACTIVO })
   @Column({
     name: 'estado',
     type: 'enum',
@@ -80,9 +91,11 @@ export class Trabajador {
   })
   estado: EstadoTrabajador;
 
+  @ApiProperty({ example: null, nullable: true })
   @Column({ name: 'foto', type: 'varchar', nullable: true })
   foto: string | null;
 
+  @ApiProperty({ enum: NivelFormacion, example: NivelFormacion.TECNICO })
   @Column({
     name: 'nivel_formación',
     type: 'enum',
@@ -90,6 +103,7 @@ export class Trabajador {
   })
   nivelFormacion: NivelFormacion;
 
+  @ApiProperty({ example: null, nullable: true })
   @Column({ name: 'recomendaciones', type: 'text', nullable: true })
   recomendaciones: string | null;
 
@@ -98,4 +112,10 @@ export class Trabajador {
     (disponibilidad) => disponibilidad.trabajador,
   )
   disponibilidades: Disponibilidad[];
+
+  @OneToMany(
+    () => DetallePortafolio,
+    (detallePortafolio) => detallePortafolio.trabajador,
+  )
+  detallesPortafolio: DetallePortafolio[];
 }

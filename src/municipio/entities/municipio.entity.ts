@@ -6,6 +6,7 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Zona } from '../../zona/entities/zona.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 export const MUNICIPIOS_INICIALES: ReadonlyArray<{
   id: number;
@@ -45,9 +46,11 @@ export const MUNICIPIOS_INICIALES: ReadonlyArray<{
 
 @Entity('municipios')
 export class Municipio {
+  @ApiProperty({ example: 1 })
   @PrimaryGeneratedColumn()
   id: number;
 
+  @ApiProperty({ example: 'Montería' })
   @Column({ nullable: false })
   nombre: string;
 

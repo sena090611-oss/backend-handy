@@ -1,5 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
@@ -19,6 +20,17 @@ async function bootstrap(): Promise<void> {
 
   // Habilitar CORS (opcional, para desarrollo con frontend)
   app.enableCors();
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Handy API')
+    .setDescription('Documentación de la API de Handy')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, swaggerDocument, {
+    swaggerOptions: { persistAuthorization: true },
+  });
 
   const port: number = Number(process.env.PORT ?? 3000);
   await app.listen(port);

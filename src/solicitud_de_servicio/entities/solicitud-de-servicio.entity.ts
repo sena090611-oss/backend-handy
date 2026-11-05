@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
+  OneToMany,
   // Se agrega OneToOne para la relación con Calificación
   OneToOne,
   JoinColumn,
@@ -12,19 +13,24 @@ import {
 import { User } from '../../user/entities/user.entity';
 import { Trabajador } from '../../trabajador/entities/trabajador.entity';
 import { Calificacion } from '../../calificacion/entities/calificacion.entity'; // Entidad de calificación relacionada 1‑1
+import { ReporteIncidente } from '../../reporte_incidente/entities/reporte-incidente.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 // Tabla "solicitud_de_servicio" representa una petición de servicio que
 // hace un usuario. Cada solicitud pertenece a un único usuario (FK id_usuario).
 @Entity('solicitud_de_servicio') // Definimos el nombre de la tabla en la base de datos.
 export class SolicitudDeServicio {
+  @ApiProperty({ example: 12 })
   @PrimaryGeneratedColumn() // Columna auto‑incremental que actúa como primary key.
   id: number;
 
   // Texto descriptivo de la solicitud de servicio.
+  @ApiProperty({ example: 'Necesito reparar una fuga en la cocina.' })
   @Column({ type: 'text' })
   descripcion: string;
 
   // Fecha de creación generada automáticamente por TypeORM.
+  @ApiProperty({ example: '2026-11-04T14:30:00.000Z', format: 'date-time' })
   @CreateDateColumn({ name: 'fecha_creacion' })
   fechaCreacion: Date;
 
@@ -49,4 +55,7 @@ export class SolicitudDeServicio {
   @ManyToOne(() => Trabajador, { nullable: true, eager: true })
   @JoinColumn({ name: 'id_trabajador' })
   trabajador?: Trabajador;
+
+  @OneToMany(() => ReporteIncidente, (reporte) => reporte.solicitud)
+  reportes: ReporteIncidente[];
 }

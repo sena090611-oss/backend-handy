@@ -11,6 +11,8 @@ import { TrabajadorModule } from './trabajador/trabajador.module';
 // Módulo que gestiona la entidad Calificacion y su lógica de negocio
 import { CalificacionModule } from './calificacion/calificacion.module';
 import { DisponibilidadModule } from './disponibilidad/disponibilidad.module';
+import { ReporteIncidenteModule } from './reporte_incidente/reporte-incidente.module';
+import { DetallePortafolioModule } from './detalle_portafolio/detalle_portafolio/detalle-portafolio.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { DisponibilidadModule } from './disponibilidad/disponibilidad.module';
     TrabajadorModule,
     CalificacionModule,
     DisponibilidadModule,
+    ReporteIncidenteModule,
+    DetallePortafolioModule,
   ],
 })
 export class AppModule {}

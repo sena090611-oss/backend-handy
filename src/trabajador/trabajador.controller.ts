@@ -19,31 +19,46 @@ import { UpdateEstadoTrabajadorDto } from './dto/update-estado-trabajador.dto';
 import { UpdateTrabajadorDto } from './dto/update-trabajador.dto';
 import { Trabajador } from './entities/trabajador.entity';
 import { TrabajadorService } from './trabajador.service';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
 @Controller('trabajadores')
+@ApiTags('Trabajadores')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TrabajadorController {
   constructor(private readonly trabajadorService: TrabajadorService) {}
 
   @Post()
+  @ApiCreatedResponse({ type: Trabajador })
   @Roles('admin')
   create(@Body() dto: CreateTrabajadorDto): Promise<Trabajador> {
     return this.trabajadorService.create(dto);
   }
 
   @Get()
+  @ApiOkResponse({ type: [Trabajador] })
   @Roles('admin')
   findAll(): Promise<Trabajador[]> {
     return this.trabajadorService.findAll();
   }
 
   @Get(':id')
+  @ApiParam({ name: 'id', example: 3, description: 'ID del trabajador' })
+  @ApiOkResponse({ type: Trabajador })
   @Roles('admin')
   findOne(@Param('id', ParseIntPipe) id: number): Promise<Trabajador> {
     return this.trabajadorService.findOne(id);
   }
 
   @Patch(':id/estado')
+  @ApiParam({ name: 'id', example: 3, description: 'ID del trabajador' })
+  @ApiOkResponse({ type: Trabajador })
   @Roles('admin')
   updateEstado(
     @Param('id', ParseIntPipe) id: number,
@@ -53,6 +68,8 @@ export class TrabajadorController {
   }
 
   @Patch(':id')
+  @ApiParam({ name: 'id', example: 3, description: 'ID del trabajador' })
+  @ApiOkResponse({ type: Trabajador })
   @Roles('admin')
   update(
     @Param('id', ParseIntPipe) id: number,

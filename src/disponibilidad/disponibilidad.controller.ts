@@ -20,14 +20,24 @@ import { CreateDisponibilidadDto } from './dto/create-disponibilidad.dto';
 import { UpdateDisponibilidadDto } from './dto/update-disponibilidad.dto';
 import { Disponibilidad } from './entities/disponibilidad.entity';
 import { DisponibilidadService } from './disponibilidad.service';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 
 @Controller('disponibilidades')
+@ApiTags('Disponibilidades')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('trabajador', 'admin')
 export class DisponibilidadController {
   constructor(private readonly disponibilidadService: DisponibilidadService) {}
 
   @Post()
+  @ApiCreatedResponse({ type: Disponibilidad })
   create(
     @Body() dto: CreateDisponibilidadDto,
     @GetUser() usuario: User,
@@ -36,11 +46,14 @@ export class DisponibilidadController {
   }
 
   @Get()
+  @ApiOkResponse({ type: [Disponibilidad] })
   findAll(@GetUser() usuario: User): Promise<Disponibilidad[]> {
     return this.disponibilidadService.findAll(usuario);
   }
 
   @Get(':id')
+  @ApiParam({ name: 'id', example: 7, description: 'ID de la disponibilidad' })
+  @ApiOkResponse({ type: Disponibilidad })
   findOne(
     @Param('id', ParseIntPipe) id: number,
     @GetUser() usuario: User,
@@ -49,6 +62,8 @@ export class DisponibilidadController {
   }
 
   @Patch(':id')
+  @ApiParam({ name: 'id', example: 7, description: 'ID de la disponibilidad' })
+  @ApiOkResponse({ type: Disponibilidad })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateDisponibilidadDto,

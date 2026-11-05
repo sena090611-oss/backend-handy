@@ -10,6 +10,7 @@ import {
 import { Exclude } from 'class-transformer';
 // Importamos la entidad Municipio para crear la relación FK "id_municipio"
 import { Municipio } from '../../municipio/entities/municipio.entity';
+import { ApiProperty } from '@nestjs/swagger';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -27,10 +28,12 @@ export enum UserStatus {
 @Entity('usuarios')
 export class User {
   // Clave primaria auto-incremental
+  @ApiProperty({ example: 5 })
   @PrimaryGeneratedColumn()
   id: number;
 
   // Columna de email única y no nula
+  @ApiProperty({ example: 'cliente@handy.com' })
   @Column({ unique: true, nullable: false })
   email: string;
 
@@ -42,22 +45,27 @@ export class User {
   password: string;
 
   // Nombre completo del usuario
+  @ApiProperty({ example: 'María Pérez' })
   @Column({ nullable: false })
   fullName: string; // alias: nombre
 
   // Estado del usuario
+  @ApiProperty({ enum: UserStatus, example: UserStatus.ACTIVO })
   @Column({ type: 'enum', enum: UserStatus, default: UserStatus.PENDIENTE })
   isActive: UserStatus;
 
   // Rol del usuario
+  @ApiProperty({ enum: UserRole, example: UserRole.CLIENTE })
   @Column({ type: 'enum', enum: UserRole, default: UserRole.CLIENTE })
   role: UserRole;
 
   // Fecha de creación automática
+  @ApiProperty({ example: '2026-11-04T14:30:00.000Z', format: 'date-time' })
   @CreateDateColumn()
   createdAt: Date;
 
   // Fecha de actualización automática
+  @ApiProperty({ example: '2026-11-04T15:00:00.000Z', format: 'date-time' })
   @UpdateDateColumn()
   updatedAt: Date;
 
