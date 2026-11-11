@@ -1,3 +1,7 @@
+/**
+ * Controlador de disponibilidades del trabajador.
+ * Expone los endpoints para crear, consultar, actualizar y eliminar slots de disponibilidad.
+ */
 import {
   Body,
   Controller,

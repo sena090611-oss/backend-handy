@@ -1,3 +1,7 @@
+/**
+ * Guard que valida que el usuario autenticado tenga uno de los roles permitidos.
+ * Se usa junto con JwtAuthGuard para proteger rutas por permisos.
+ */
 import {
   Injectable,
   CanActivate,

@@ -1,3 +1,7 @@
+/**
+ * DTO para registrar un usuario nuevo.
+ * Reusa los campos de CreateUserDto y valida que el rol sea cliente o trabajador.
+ */
 import { CreateUserDto } from '../../user/dto/create-user.dto';
 import { IsIn } from 'class-validator';
 import { UserRole } from '../../user/entities/user.entity';

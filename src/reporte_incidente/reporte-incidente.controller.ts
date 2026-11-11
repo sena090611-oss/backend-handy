@@ -1,3 +1,7 @@
+/**
+ * Controlador de reportes de incidentes.
+ * Permite crear, consultar, actualizar y eliminar reportes asociados a solicitudes.
+ */
 import {
   Controller,
   Get,

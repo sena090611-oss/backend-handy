@@ -1,3 +1,7 @@
+/**
+ * Módulo de disponibilidad.
+ * Registra la entidad de disponibilidad y el servicio que administra la jornada del trabajador.
+ */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Trabajador } from '../trabajador/entities/trabajador.entity';

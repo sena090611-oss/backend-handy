@@ -1,3 +1,7 @@
+/**
+ * Servicio de reportes de incidentes.
+ * Gestiona la creación, validación, filtros y eliminación de reportes de servicio.
+ */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';

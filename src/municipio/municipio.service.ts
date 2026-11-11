@@ -1,3 +1,7 @@
+/**
+ * Servicio de municipios.
+ * Inicializa la data base y gestiona creación, consulta y validación de municipios.
+ */
 import {
   Injectable,
   ConflictException,

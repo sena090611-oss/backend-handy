@@ -1,3 +1,8 @@
+/**
+ * Archivo principal de configuración global de la aplicación.
+ * Registra los módulos principales, la conexión a base de datos y la
+ * configuración de variables de entorno para todo el backend.
+ */
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';

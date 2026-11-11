@@ -1,3 +1,7 @@
+/**
+ * Módulo de reportes de incidentes.
+ * Registra la entidad de reportes y la relación con solicitudes de servicio.
+ */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReporteIncidente } from './entities/reporte-incidente.entity';

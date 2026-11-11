@@ -1,3 +1,7 @@
+/**
+ * Controlador de municipios.
+ * Expone la gestión de los municipios y la consulta de trabajadores asociados.
+ */
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards, Query } from '@nestjs/common';
 import { MunicipioService } from './municipio.service';
 import { CreateMunicipioDto } from './dto/create-municipios.dto';

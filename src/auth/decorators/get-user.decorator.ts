@@ -1,3 +1,7 @@
+/**
+ * Decorador que extrae la información del usuario autenticado desde la request.
+ * Se usa para recuperar el perfil del cliente o trabajador que envió el token JWT.
+ */
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { User } from '../../user/entities/user.entity';
 

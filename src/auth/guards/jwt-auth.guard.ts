@@ -1,3 +1,7 @@
+/**
+ * Guard de autenticación basado en JWT.
+ * Cualquier ruta protegida con este guard exige un token válido del usuario.
+ */
 import { Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 

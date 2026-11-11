@@ -1,3 +1,7 @@
+/**
+ * Servicio que gestiona el calendario de disponibilidad del trabajador.
+ * Valida la propiedad del trabajador, la no duplicación de jornadas y la presencia del recurso.
+ */
 import {
   ConflictException,
   ForbiddenException,

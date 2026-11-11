@@ -1,3 +1,8 @@
+/**
+ * Punto de entrada de la aplicación NestJS.
+ * Aquí se crea la instancia de la API, se activan validaciones globales,
+ * se habilita Swagger y se levanta el servidor HTTP.
+ */
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';

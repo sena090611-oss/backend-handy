@@ -1,3 +1,7 @@
+/**
+ * Módulo de municipios.
+ * Registra la entidad y el controlador para administrar los municipios del sistema.
+ */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MunicipioController } from './municipio.controller';

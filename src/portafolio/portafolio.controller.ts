@@ -1,3 +1,7 @@
+/**
+ * Controlador de portafolios o oficios.
+ * Permite registrar, listar y actualizar los oficios asociados al perfil del trabajador.
+ */
 import {
   Body,
   Controller,
