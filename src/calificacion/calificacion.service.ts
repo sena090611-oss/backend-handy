@@ -1,13 +1,18 @@
 import {
+  ForbiddenException,
   Injectable,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Calificacion } from './entities/calificacion.entity';
+import {
+  Calificacion,
+  CalificacionTipo,
+} from './entities/calificacion.entity';
 import { CreateCalificacionDto } from './dto/create-calificacion.dto';
 import { SolicitudDeServicio } from '../solicitud_de_servicio/entities/solicitud-de-servicio.entity';
+import { User, UserRole } from '../user/entities/user.entity';
 
 /**
  * Servicio que maneja la lógica de negocio de las calificaciones.
@@ -27,33 +32,80 @@ export class CalificacionService {
    * Lanza NotFoundException si la solicitud no existe y ConflictException
    * si la solicitud ya tiene una calificación.
    */
-  async create(dto: CreateCalificacionDto): Promise<Calificacion> {
+  async createByCliente(
+    dto: CreateCalificacionDto,
+    usuario: User,
+  ): Promise<Calificacion> {
+    return this.create(dto, usuario, CalificacionTipo.CLIENTE_A_TRABAJADOR);
+  }
+
+  async createByTrabajador(
+    dto: CreateCalificacionDto,
+    usuario: User,
+  ): Promise<Calificacion> {
+    return this.create(dto, usuario, CalificacionTipo.TRABAJADOR_A_CLIENTE);
+  }
+
+  private async create(
+    dto: CreateCalificacionDto,
+    usuario: User,
+    tipo: CalificacionTipo,
+  ): Promise<Calificacion> {
     const solicitud = await this.solicitudRepository.findOne({
       where: { id: dto.solicitudId },
-      relations: { calificacion: true },
+      relations: {
+        usuario: true,
+        trabajador: { usuario: true },
+        calificaciones: true,
+      },
     });
     if (!solicitud) {
       throw new NotFoundException(
         `Solicitud de servicio con ID ${dto.solicitudId} no encontrada`,
       );
     }
-    if (solicitud.calificacion) {
+    if (tipo === CalificacionTipo.CLIENTE_A_TRABAJADOR) {
+      if (
+        usuario.role !== UserRole.CLIENTE ||
+        solicitud.usuario.id !== usuario.id
+      ) {
+        throw new ForbiddenException(
+          'Solo el cliente que creó la solicitud puede calificar al trabajador',
+        );
+      }
+      if (!solicitud.trabajador) {
+        throw new ConflictException(
+          'La solicitud todavía no tiene un trabajador asignado',
+        );
+      }
+    } else if (
+      usuario.role !== UserRole.TRABAJADOR ||
+      solicitud.trabajador?.usuario.id !== usuario.id
+    ) {
+      throw new ForbiddenException(
+        'Solo el trabajador asignado a la solicitud puede calificar al cliente',
+      );
+    }
+
+    if (solicitud.calificaciones?.some((calificacion) => calificacion.tipo === tipo)) {
       throw new ConflictException(
-        `La solicitud con ID ${dto.solicitudId} ya tiene una calificación`,
+        `Ya existe una calificación de tipo ${tipo} para la solicitud con ID ${dto.solicitudId}`,
       );
     }
     const calificacion = this.calificacionRepository.create({
       puntuacion: dto.puntuacion,
       comentario: dto.comentario,
+      tipo,
       solicitud,
     });
     return this.calificacionRepository.save(calificacion);
   }
 
-  /** Obtiene la calificación asociada a una solicitud */
-  async findBySolicitud(solicitudId: number): Promise<Calificacion | null> {
-    return this.calificacionRepository.findOne({
+  /** Obtiene las calificaciones asociadas a una solicitud */
+  async findBySolicitud(solicitudId: number): Promise<Calificacion[]> {
+    return this.calificacionRepository.find({
       where: { solicitud: { id: solicitudId } },
+      order: { tipo: 'ASC' },
     });
   }
 
@@ -63,6 +115,9 @@ export class CalificacionService {
       .createQueryBuilder('c')
       .innerJoin('c.solicitud', 's')
       .where('s.id_trabajador = :trabajadorId', { trabajadorId })
+      .andWhere('c.tipo = :tipo', {
+        tipo: CalificacionTipo.CLIENTE_A_TRABAJADOR,
+      })
       .select('AVG(c.puntuacion)', 'avg')
       .getRawOne();
     return Number(result?.avg) || 0;

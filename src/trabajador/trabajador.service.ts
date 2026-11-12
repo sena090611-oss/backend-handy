@@ -16,7 +16,10 @@ import {
   EstadoTrabajador,
   Trabajador,
 } from './entities/trabajador.entity';
-import { Calificacion } from '../calificacion/entities/calificacion.entity';
+import {
+  Calificacion,
+  CalificacionTipo,
+} from '../calificacion/entities/calificacion.entity';
 
 @Injectable()
 export class TrabajadorService {
@@ -91,6 +94,9 @@ export class TrabajadorService {
       .createQueryBuilder('calif')
       .innerJoin('calif.solicitud', 'sol')
       .where('sol.id_trabajador = :trabajadorId', { trabajadorId: id })
+      .andWhere('calif.tipo = :tipo', {
+        tipo: CalificacionTipo.CLIENTE_A_TRABAJADOR,
+      })
       .select('AVG(calif.puntuacion)', 'avg')
       .getRawOne();
     const promedio = Number(result?.avg) || 0; // si no hay calificaciones, 0

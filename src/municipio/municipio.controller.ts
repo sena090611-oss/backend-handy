@@ -8,28 +8,33 @@ import { CreateMunicipioDto } from './dto/create-municipios.dto';
 import { UpdateMunicipioDto } from './dto/update-municipio.dto';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Municipio } from './entities/municipio.entity';
 
 @Controller('municipio')
 @ApiTags('Municipios')
-//@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class MunicipioController {
 	constructor(private readonly municipioService: MunicipioService) {}
 
 	@Post()
+	@Roles('admin')
 	@ApiCreatedResponse({ type: Municipio })
 	create(@Body() dto: CreateMunicipioDto) {
 		return this.municipioService.create(dto);
 	}
 
 	@Get()
+	@Roles('trabajador', 'cliente', 'admin')
 	@ApiOkResponse({ type: [Municipio] })
 	findAll() {
 		return this.municipioService.findAll();
 	}
 
 	@Get(':id')
+	@Roles('trabajador', 'cliente', 'admin')
 	@ApiParam({ name: 'id', example: 1, description: 'ID del municipio' })
 	@ApiOkResponse({ type: Municipio })
 	findOne(@Param('id', ParseIntPipe) id: number) {
@@ -37,6 +42,7 @@ export class MunicipioController {
 	}
 
 	@Patch(':id')
+	@Roles('admin')
 	@ApiParam({ name: 'id', example: 1, description: 'ID del municipio' })
 	@ApiOkResponse({ type: Municipio })
 	update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMunicipioDto) {
@@ -48,6 +54,7 @@ export class MunicipioController {
    * Se puede filtrar opcionalmente por ocupación mediante el query param `occupation`.
    */
   @Get(':id/trabajadores')
+  @Roles('cliente', 'admin')
   @ApiParam({ name: 'id', example: 1, description: 'ID del municipio' })
   @ApiOkResponse({ schema: { example: 18 } })
   countWorkers(

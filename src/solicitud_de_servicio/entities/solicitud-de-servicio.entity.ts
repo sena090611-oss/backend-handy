@@ -5,14 +5,12 @@ import {
   CreateDateColumn,
   ManyToOne,
   OneToMany,
-  // Se agrega OneToOne para la relación con Calificación
-  OneToOne,
   JoinColumn,
 } from 'typeorm';
 // Importamos la entidad User para establecer la relación ManyToOne.
 import { User } from '../../user/entities/user.entity';
 import { Trabajador } from '../../trabajador/entities/trabajador.entity';
-import { Calificacion } from '../../calificacion/entities/calificacion.entity'; // Entidad de calificación relacionada 1‑1
+import { Calificacion } from '../../calificacion/entities/calificacion.entity';
 import { ReporteIncidente } from '../../reporte_incidente/entities/reporte-incidente.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -34,15 +32,12 @@ export class SolicitudDeServicio {
   @CreateDateColumn({ name: 'fecha_creacion' })
   fechaCreacion: Date;
 
-  // Relación opcional 1‑1 con Calificación.
-  // La FK se almacena en la tabla `calificacion` (columna `id_solicitud`).
-  // Aquí definimos la parte inversa sin `@JoinColumn` para evitar crear
-  // una segunda columna `id_calificacion` que produciría conflicto.
-  @OneToOne(() => Calificacion, (calif) => calif.solicitud, {
+  // Una solicitud puede tener una calificación de cada participante.
+  @OneToMany(() => Calificacion, (calif) => calif.solicitud, {
     cascade: true, // persiste calificación al guardar solicitud
     eager: true,
   })
-  calificacion?: Calificacion;
+  calificaciones?: Calificacion[];
 
   // Cada solicitud pertenece a un usuario. La relación es ManyToOne porque
   // muchos registros de solicitud pueden referenciar al mismo usuario.

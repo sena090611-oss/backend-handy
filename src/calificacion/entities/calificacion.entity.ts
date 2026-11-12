@@ -3,17 +3,24 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  OneToOne,
+  ManyToOne,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { SolicitudDeServicio } from '../../solicitud_de_servicio/entities/solicitud-de-servicio.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export enum CalificacionTipo {
+  CLIENTE_A_TRABAJADOR = 'cliente_a_trabajador',
+  TRABAJADOR_A_CLIENTE = 'trabajador_a_cliente',
+}
+
 /**
  * Entidad que representa la calificación dada a una solicitud de servicio.
- * Cada solicitud puede tener **una** calificación (relación 1‑1).
+ * Cada solicitud puede tener una calificación de cada tipo.
  */
 @Entity({ name: 'calificacion' })
+@Unique(['solicitud', 'tipo'])
 export class Calificacion {
   @ApiProperty({ example: 9 })
   @PrimaryGeneratedColumn()
@@ -27,12 +34,20 @@ export class Calificacion {
   @Column({ type: 'text', nullable: true })
   comentario?: string; // Comentario opcional del cliente
 
+  @ApiProperty({ enum: CalificacionTipo })
+  @Column({
+    type: 'enum',
+    enum: CalificacionTipo,
+    default: CalificacionTipo.CLIENTE_A_TRABAJADOR,
+  })
+  tipo: CalificacionTipo;
+
   @ApiProperty({ example: '2026-11-04T14:30:00.000Z', format: 'date-time' })
   @CreateDateColumn({ type: 'timestamp' })
   fecha: Date; // Fecha automática de creación
 
-  // Relación 1‑1 con la SolicitudDeServicio; la FK se guarda en esta tabla
-  @OneToOne(() => SolicitudDeServicio, (solicitud) => solicitud.calificacion, {
+  // La FK se guarda en esta tabla; el tipo permite una calificación por participante.
+  @ManyToOne(() => SolicitudDeServicio, (solicitud) => solicitud.calificaciones, {
     onDelete: 'CASCADE', // elimina la calificación si se borra la solicitud
   })
   @JoinColumn({ name: 'id_solicitud' }) // columna FK
