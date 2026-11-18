@@ -8,9 +8,10 @@ import { MunicipioController } from './municipio.controller';
 import { MunicipioService } from './municipio.service';
 import { Municipio } from './entities/municipio.entity';
 import { User } from '../user/entities/user.entity';
+import { Trabajador } from '../trabajador/entities/trabajador.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Municipio, User])],
+  imports: [TypeOrmModule.forFeature([Municipio, User, Trabajador])],
   controllers: [MunicipioController],
   providers: [MunicipioService],
 })

@@ -14,7 +14,9 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateOwnUserDto } from './dto/update-own-user.dto';
 import { User } from './entities/user.entity';
+import { GetUser } from '../auth/decorators/get-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -47,26 +49,44 @@ export class UserController {
   }
 
   // ---------------------------------------------------------------
-  // READ ALL – solo usuarios con rol Trabajador o Admin pueden
-  // listar todos los usuarios.
+  // READ ALL – solo Admin puede listar todos los usuarios completos.
   // ---------------------------------------------------------------
   @Get()
-  @Roles('trabajador', 'cliente', 'admin')
+  @Roles('admin')
   @ApiOkResponse({ type: [User] })
   findAll(): Promise<User[]> {
     return this.userService.findAll();
   }
 
+  @Get('me')
+  @Roles('admin', 'trabajador', 'cliente')
+  @ApiOkResponse({ type: User })
+  findMine(@GetUser() usuario: User): Promise<User> {
+    return this.userService.findMine(usuario);
+  }
+
+  @Patch('me')
+  @Roles('admin', 'trabajador', 'cliente')
+  @ApiOkResponse({ type: User })
+  updateMine(
+    @GetUser() usuario: User,
+    @Body() dto: UpdateOwnUserDto,
+  ): Promise<User> {
+    return this.userService.updateMine(usuario, dto);
+  }
+
   // ---------------------------------------------------------------
-  // READ ONE – obtener detalle de un usuario por ID.
-  // Accesible para Trabajador y Admin.
+  // READ ONE – solo un administrador puede consultar otro usuario por ID.
   // ---------------------------------------------------------------
   @Get(':id')
-  @Roles('trabajador', 'cliente', 'admin')
+  @Roles('admin')
   @ApiParam({ name: 'id', example: 5, description: 'ID del usuario' })
   @ApiOkResponse({ type: User })
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<User> {
-    return this.userService.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ): Promise<User> {
+    return this.userService.findOne(id, usuario);
   }
 
   // ---------------------------------------------------------------
@@ -84,8 +104,10 @@ export class UserController {
   }
 
   // ---------------------------------------------------------------
-  // DELETE – eliminar físicamente un usuario.
+  // DELETE – eliminar un usuario.
   // Sólo el rol Admin está autorizado para esta operación.
+  // Si el usuario tiene solicitudes o ficha de trabajador se hace borrado
+  // lógico (queda SUSPENDIDO); si no, se elimina físicamente.
   // ---------------------------------------------------------------
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)

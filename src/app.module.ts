@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { join } from 'path';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { MunicipioModule } from './municipio/municipio.module';
@@ -28,6 +31,10 @@ import { DetallePortafolioModule } from './detalle_portafolio/detalle_portafolio
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
+        // En producción el esquema se gestiona con migraciones, nunca con
+        // synchronize; en desarrollo se sincroniza automáticamente.
+        const isProduction: boolean =
+          configService.get<string>('NODE_ENV') === 'production';
         const cfg = {
           type: 'mysql' as const,
           host: configService.getOrThrow<string>('DB_HOST'),
@@ -37,10 +44,34 @@ import { DetallePortafolioModule } from './detalle_portafolio/detalle_portafolio
           password: configService.get<string>('DB_PASSWORD') ?? '',
           database: configService.getOrThrow<string>('DB_DATABASE'),
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: !isProduction,
+          // Migraciones de TypeORM (carpeta src/migrations). Se compilan a
+          // dist/migrations junto con el resto del proyecto.
+          migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
+          migrationsTableName: 'migrations',
+          // false: las migraciones se aplican manualmente con
+          // `npm run migration:run` al desplegar en producción.
+          migrationsRun: false,
         };
         return cfg;
       },
+    }),
+
+    // Rate limiting global (hardening de producción). Por defecto 100
+    // peticiones por minuto por IP; configurable con THROTTLE_LIMIT y
+    // THROTTLE_TTL_MS.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        throttlers: [
+          {
+            // Milisegundos de la ventana de tiempo.
+            ttl: Number(configService.get<string>('THROTTLE_TTL_MS') ?? 60_000),
+            // Máximo de peticiones por ventana por IP.
+            limit: Number(configService.get<string>('THROTTLE_LIMIT') ?? 100),
+          },
+        ],
+      }),
     }),
 
     // Módulos de la aplicación
@@ -56,5 +87,7 @@ import { DetallePortafolioModule } from './detalle_portafolio/detalle_portafolio
     ReporteIncidenteModule,
     DetallePortafolioModule,
   ],
+  // Guard global de rate limiting (se aplica a todos los endpoints).
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

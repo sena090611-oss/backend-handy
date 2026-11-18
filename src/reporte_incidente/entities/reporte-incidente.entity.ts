@@ -7,6 +7,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { SolicitudDeServicio } from '../../solicitud_de_servicio/entities/solicitud-de-servicio.entity';
+import { User } from '../../user/entities/user.entity';
 import { EstadoReporte } from '../enums/estado-reporte.enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -32,12 +33,19 @@ export class ReporteIncidente {
   estado: EstadoReporte;
 
   // Relación con la solicitud de servicio a la que pertenece el reporte.
-  @ManyToOne(() => SolicitudDeServicio, (solicitud) => solicitud.reportes, { eager: true })
+  // CASCADE: si se elimina la solicitud, se eliminan también sus reportes.
+  @ManyToOne(
+    () => SolicitudDeServicio,
+    (solicitud) => solicitud.reportes,
+    { eager: true, onDelete: 'CASCADE' },
+  )
   @JoinColumn({ name: 'id_solicitud' })
   solicitud: SolicitudDeServicio;
 
-  // Campo opcional que indica quién reportó el incidente.
-  @ApiPropertyOptional({ example: 'María Pérez', nullable: true })
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  reportadoPor?: string;
+  // Usuario que reportó el incidente. Se deriva del token JWT y no se acepta
+  // desde el cuerpo de la petición.
+  @ApiPropertyOptional({ type: () => User, nullable: true })
+  @ManyToOne(() => User, { eager: true, nullable: true })
+  @JoinColumn({ name: 'id_usuario_reporta' })
+  reportadoPor?: User;
 }

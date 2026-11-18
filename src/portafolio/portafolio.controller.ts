@@ -22,10 +22,12 @@ import { PortafolioService } from './portafolio.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
 
 @Controller('portafolio')
 @ApiTags('Portafolio')
+// Documenta en Swagger que estos endpoints requieren token JWT.
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PortafolioController {
   /** Recibe el servicio que ejecuta las operaciones de portafolio. */
@@ -56,9 +58,13 @@ export class PortafolioController {
     return this.portafolioService.findOne(id);
   }
 
-  /** Actualiza el registro indicado con los campos enviados en la solicitud. */
+  /**
+   * Actualiza el registro indicado con los campos enviados en la solicitud.
+   * Solo un administrador: el catálogo de oficios es global y los trabajadores
+   * gestionan sus propios oficios mediante /detalles-portafolio.
+   */
   @Patch(':id')
-  @Roles('admin', 'trabajador')
+  @Roles('admin')
   @ApiParam({ name: 'id', example: 2, description: 'ID del oficio' })
   @ApiOkResponse({ type: Portafolio })
   update(

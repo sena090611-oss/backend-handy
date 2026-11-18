@@ -10,6 +10,7 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
 import {
@@ -17,6 +18,7 @@ import {
   RegisterResponse,
 } from './interfaces/auth-response.interface';
 import { User } from '../user/entities/user.entity';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -32,8 +34,10 @@ export class AuthController {
   /**
    * POST /auth/register
    * Registrar un nuevo usuario (responde 201 Created)
+   * Límite estricto: 5 peticiones por minuto por IP.
    */
   @Post('register')
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @ApiCreatedResponse({
     schema: {
       example: {
@@ -55,9 +59,11 @@ export class AuthController {
   /**
    * POST /auth/login
    * Iniciar sesión (responde 200 OK, no se crea ningún recurso)
+   * Límite estricto: 5 intentos por minuto por IP (fuerza bruta).
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @ApiOkResponse({
     schema: {
       example: {
@@ -73,6 +79,19 @@ export class AuthController {
   })
   login(@Body() loginDto: LoginDto): Promise<AuthResponse> {
     return this.authService.login(loginDto);
+  }
+
+  @Post('cambiar-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({ schema: { example: { message: 'Contraseña actualizada' } } })
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @GetUser() user: User,
+  ): Promise<{ message: string }> {
+    await this.authService.changePassword(user, dto);
+    return { message: 'Contraseña actualizada' };
   }
 
   /**

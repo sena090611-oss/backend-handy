@@ -7,12 +7,17 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MinLength,
 } from 'class-validator';
 // Importamos el enum UserRole desde la entidad del usuario para usarlo en la validación del rol.
 // La ruta relativa sube dos niveles para llegar al directorio raíz del proyecto y luego accede a la entidad.
 import { UserRole } from '../../user/entities/user.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_REQUIRES_LETTER_AND_NUMBER,
+} from '../password-policy';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'cliente@handy.com' })
@@ -21,9 +26,14 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'El email es obligatorio' })
   email: string;
 
-  // Validación de contraseña con mínimo 6 caracteres
+  // La contraseña debe tener al menos 8 caracteres, una letra y un número.
   @IsString({ message: 'La contraseña debe ser una cadena de texto' })
-  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
+  @MinLength(PASSWORD_MIN_LENGTH, {
+    message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`,
+  })
+  @Matches(PASSWORD_REQUIRES_LETTER_AND_NUMBER, {
+    message: 'La contraseña debe incluir al menos una letra y un número',
+  })
   @IsNotEmpty({ message: 'La contraseña es obligatoria' })
   @ApiProperty({ example: 'Handy123!' })
   password: string;

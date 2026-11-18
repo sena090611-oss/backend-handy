@@ -1,50 +1,37 @@
 /**
  * Servicio de municipios.
- * Inicializa la data base y gestiona creación, consulta y validación de municipios.
+ * Gestiona creación, consulta y validación de municipios.
+ *
+ * Nota: la carga inicial de municipios (departamento de Córdoba, Colombia)
+ * NO se hace aquí; se hace con el script `npm run seed` leyendo
+ * src/seed/municipios.json, para que la data base provenga de un único
+ * archivo configurable y no de una lista hardcodeada en el código.
  */
 import {
   Injectable,
   ConflictException,
   NotFoundException,
-  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  MUNICIPIOS_INICIALES,
-  Municipio,
-} from './entities/municipio.entity';
+import { Municipio } from './entities/municipio.entity';
 import { CreateMunicipioDto } from './dto/create-municipios.dto';
 import { UpdateMunicipioDto } from './dto/update-municipio.dto';
 // New imports for counting workers
-import { User, UserRole } from '../user/entities/user.entity';
+import { UserRole } from '../user/entities/user.entity';
+import { Trabajador } from '../trabajador/entities/trabajador.entity';
 
 
 
 
 @Injectable()
-export class MunicipioService implements OnModuleInit {
+export class MunicipioService {
   constructor(
     @InjectRepository(Municipio)
     private readonly municipioRepository: Repository<Municipio>,
-    // Repository for Users to count workers per municipio
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    @InjectRepository(Trabajador)
+    private readonly trabajadorRepository: Repository<Trabajador>,
   ) {}
-
-  async onModuleInit(): Promise<void> {
-    const municipiosExistentes = await this.municipioRepository.find({
-      select: { id: true },
-    });
-    const idsExistentes = new Set(municipiosExistentes.map(({ id }) => id));
-    const municipiosPendientes = MUNICIPIOS_INICIALES.filter(
-      ({ id }) => !idsExistentes.has(id),
-    );
-
-    if (municipiosPendientes.length > 0) {
-      await this.municipioRepository.insert(municipiosPendientes);
-    }
-  }
 
   async create(createMunicipioDto: CreateMunicipioDto): Promise<Municipio> {
     const nombre = createMunicipioDto.nombre.trim();
@@ -84,9 +71,7 @@ export class MunicipioService implements OnModuleInit {
    * Devuelve la cantidad de usuarios con rol TRABAJADOR que pertenecen al municipio
    * especificado. Opcionalmente puede filtrarse por una ocupación (nombre de oficio).
    *
-   * Nota: la entidad `Portafolio` no tiene relación directa con `User` en el código
-   * actual, por lo que la filtración por ocupación no está implementada. En ese
-   * caso se ignora el parámetro `occupation` y se devuelve el total de trabajadores.
+   * La ocupación se filtra por el oficio asociado a la ficha del trabajador.
    */
   async countWorkers(
     municipioId: number,
@@ -95,18 +80,24 @@ export class MunicipioService implements OnModuleInit {
     // Verificamos que el municipio exista primero
     await this.findOne(municipioId);
 
-    const qb = this.userRepository.createQueryBuilder('user');
-    qb.where('user.role = :role', { role: UserRole.TRABAJADOR })
-      .andWhere('user.id_municipio = :municipioId', { municipioId });
+    const query = this.trabajadorRepository
+      .createQueryBuilder('trabajador')
+      .innerJoin('trabajador.usuario', 'usuario')
+      .where('usuario.role = :role', { role: UserRole.TRABAJADOR })
+      .andWhere('trabajador.id_municipio = :municipioId', { municipioId });
 
-    // Si en el futuro se agrega una relación entre User y Portafolio, aquí se
-    // podría agregar un join y filtro por `nombreOficio`.
-    if (occupation) {
-      // Placeholder: actualmente la ocupación no está modelada, así que simplemente ignoramos.
+    const ocupacion = occupation?.trim();
+    if (ocupacion) {
+      query
+        .innerJoin('trabajador.detallesPortafolio', 'detalle')
+        .innerJoin('detalle.portafolio', 'portafolio')
+        .andWhere('portafolio.nombreOficio LIKE :occupation', {
+          occupation: `%${ocupacion}%`,
+        })
+        .distinct(true);
     }
 
-    const count = await qb.getCount();
-    return count;
+    return query.getCount();
   }
 
   async remove(id: number): Promise<void> {

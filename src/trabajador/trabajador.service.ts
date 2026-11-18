@@ -1,17 +1,20 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Municipio } from '../municipio/entities/municipio.entity';
-import { User, UserRole } from '../user/entities/user.entity';
+import { User, UserRole, UserStatus } from '../user/entities/user.entity';
 import { Zona } from '../zona/entities/zona.entity';
 import { CreateTrabajadorDto } from './dto/create-trabajador.dto';
 import { UpdateEstadoTrabajadorDto } from './dto/update-estado-trabajador.dto';
 import { UpdateTrabajadorDto } from './dto/update-trabajador.dto';
+import { CreateTrabajadorPropioDto } from './dto/create-trabajador-propio.dto';
+import { UpdateTrabajadorPropioDto } from './dto/update-trabajador-propio.dto';
 import {
   EstadoTrabajador,
   Trabajador,
@@ -20,6 +23,16 @@ import {
   Calificacion,
   CalificacionTipo,
 } from '../calificacion/entities/calificacion.entity';
+import { Disponibilidad } from '../disponibilidad/entities/disponibilidad.entity';
+import { DetallePortafolio } from '../detalle_portafolio/detalle_portafolio/entities/detalle-portafolio.entity';
+import { BuscarTrabajadoresDto } from './dto/buscar-trabajadores.dto';
+import {
+  TrabajadorBusquedaDto,
+  TrabajadoresPaginadosDto,
+} from './dto/trabajador-busqueda.dto';
+import {
+  TrabajadorPerfilPublicoDto,
+} from './dto/trabajador-perfil-publico.dto';
 
 @Injectable()
 export class TrabajadorService {
@@ -39,16 +52,30 @@ export class TrabajadorService {
 
   async create(dto: CreateTrabajadorDto): Promise<Trabajador> {
     const usuario = await this.findTrabajadorUser(dto.usuarioId);
+    return this.crearFicha(dto, usuario);
+  }
+
+  async createMine(
+    dto: CreateTrabajadorPropioDto,
+    usuario: User,
+  ): Promise<Trabajador> {
+    const usuarioVerificado = await this.findTrabajadorUser(usuario.id);
+    return this.crearFicha(dto, usuarioVerificado);
+  }
+
+  private async crearFicha(
+    dto: Omit<CreateTrabajadorDto, 'usuarioId'>,
+    usuario: User,
+  ): Promise<Trabajador> {
     const fichaExistente = await this.trabajadorRepository.findOneBy({
-      usuario: { id: dto.usuarioId },
+      usuario: { id: usuario.id },
     });
     if (fichaExistente) {
       throw new ConflictException(
-        `El usuario con ID ${dto.usuarioId} ya tiene una ficha de trabajador`,
+        `El usuario con ID ${usuario.id} ya tiene una ficha de trabajador`,
       );
     }
 
-    await this.ensureEmailAvailable(dto.email);
     await this.ensureDocumentAvailable(dto.numDoc);
 
     const municipio = await this.findMunicipio(dto.municipioId);
@@ -58,7 +85,6 @@ export class TrabajadorService {
       municipio,
       zona,
       tipoDoc: dto.tipoDoc,
-      email: dto.email.trim(),
       numDoc: dto.numDoc.trim(),
       nombres: dto.nombres.trim(),
       apellidos: dto.apellidos.trim(),
@@ -104,15 +130,219 @@ export class TrabajadorService {
     return { ...trabajador, promedioCalificacion: promedio };
   }
 
+  async findMine(usuario: User): Promise<Trabajador & { promedioCalificacion?: number }> {
+    this.validarRolTrabajador(usuario);
+    const ficha = await this.buscarFichaPorUsuario(usuario.id);
+    return this.findOne(ficha.id);
+  }
+
+  async updateMine(
+    dto: UpdateTrabajadorPropioDto,
+    usuario: User,
+  ): Promise<Trabajador> {
+    this.validarRolTrabajador(usuario);
+    const ficha = await this.buscarFichaPorUsuario(usuario.id);
+    return this.actualizarFicha(await this.findOne(ficha.id), dto);
+  }
+
+  async buscar(
+    filtros: BuscarTrabajadoresDto,
+  ): Promise<TrabajadoresPaginadosDto> {
+    const { query, promedioSql } = this.crearConsultaPublica();
+
+    if (filtros.portafolioId !== undefined) {
+      const oficioSubquery = query
+        .subQuery()
+        .select('1')
+        .from(DetallePortafolio, 'detalleFiltro')
+        .innerJoin('detalleFiltro.trabajador', 'trabajadorFiltro')
+        .innerJoin('detalleFiltro.portafolio', 'portafolioFiltro')
+        .where('trabajadorFiltro.id = trabajador.id')
+        .andWhere('portafolioFiltro.id = :portafolioId')
+        .getQuery();
+      query.andWhere(`EXISTS ${oficioSubquery}`, {
+        portafolioId: filtros.portafolioId,
+      });
+    }
+
+    if (filtros.municipioId !== undefined) {
+      query.andWhere('municipio.id = :municipioId', {
+        municipioId: filtros.municipioId,
+      });
+    }
+    if (filtros.zonaId !== undefined) {
+      query.andWhere('zona.id = :zonaId', { zonaId: filtros.zonaId });
+    }
+    if (filtros.jornada !== undefined) {
+      const jornadaSubquery = query
+        .subQuery()
+        .select('1')
+        .from(Disponibilidad, 'disponibilidadFiltro')
+        .innerJoin('disponibilidadFiltro.trabajador', 'trabajadorFiltroJornada')
+        .where('trabajadorFiltroJornada.id = trabajador.id')
+        .andWhere('disponibilidadFiltro.jornada = :jornada')
+        .getQuery();
+      query.andWhere(`EXISTS ${jornadaSubquery}`, {
+        jornada: filtros.jornada,
+      });
+    }
+    if (filtros.calificacionMinima !== undefined) {
+      query.andWhere(`${promedioSql} >= :calificacionMinima`, {
+        calificacionMinima: filtros.calificacionMinima,
+      });
+    }
+
+    const page = filtros.page ?? 1;
+    const limit = filtros.limit ?? 10;
+    const total = await query.clone().getCount();
+    const { entities, raw } = await query
+      .orderBy('trabajador.nombres', 'ASC')
+      .addOrderBy('trabajador.id', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getRawAndEntities();
+    const promedios = this.extraerPromedios(raw);
+
+    return {
+      data: entities.map((trabajador) =>
+        this.toTrabajadorBusqueda(
+          trabajador,
+          promedios.get(trabajador.id) ?? 0,
+        ),
+      ),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async perfilPublico(id: number): Promise<TrabajadorPerfilPublicoDto> {
+    const { query } = this.crearConsultaPublica();
+    query.andWhere('trabajador.id = :trabajadorId', { trabajadorId: id });
+    const { entities, raw } = await query.getRawAndEntities();
+    const trabajador = entities[0];
+    if (!trabajador) {
+      throw new NotFoundException(
+        `Trabajador activo con ID ${id} no encontrado`,
+      );
+    }
+
+    const calificaciones = await this.calificacionRepository
+      .createQueryBuilder('calificacion')
+      .innerJoin('calificacion.solicitud', 'solicitud')
+      .where('solicitud.id_trabajador = :trabajadorId', { trabajadorId: id })
+      .andWhere('calificacion.tipo = :tipo', {
+        tipo: CalificacionTipo.CLIENTE_A_TRABAJADOR,
+      })
+      .select([
+        'calificacion.id',
+        'calificacion.puntuacion',
+        'calificacion.comentario',
+        'calificacion.fecha',
+      ])
+      .orderBy('calificacion.fecha', 'DESC')
+      .getMany();
+
+    const promedio = this.extraerPromedios(raw).get(id) ?? 0;
+    const perfil = new TrabajadorPerfilPublicoDto();
+    Object.assign(perfil, this.toTrabajadorBusqueda(trabajador, promedio));
+    perfil.resenas = calificaciones.map((calificacion) => ({
+      puntuacion: calificacion.puntuacion,
+      comentario: calificacion.comentario ?? null,
+      fecha: calificacion.fecha,
+    }));
+    return perfil;
+  }
+
+  private crearConsultaPublica(): {
+    query: SelectQueryBuilder<Trabajador>;
+    promedioSql: string;
+  } {
+    const query = this.trabajadorRepository
+      .createQueryBuilder('trabajador')
+      .leftJoinAndSelect('trabajador.municipio', 'municipio')
+      .leftJoinAndSelect('trabajador.zona', 'zona')
+      .leftJoinAndSelect('trabajador.detallesPortafolio', 'detalle')
+      .leftJoinAndSelect('detalle.portafolio', 'portafolio')
+      .leftJoinAndSelect('trabajador.disponibilidades', 'disponibilidad')
+      .where('trabajador.estado = :estadoActivo', {
+        estadoActivo: EstadoTrabajador.ACTIVO,
+      })
+      .addSelect('trabajador.id', 'trabajador_publico_id');
+
+    const promedioSql = query
+      .subQuery()
+      .select('COALESCE(AVG(calificacion.puntuacion), 0)')
+      .from(Calificacion, 'calificacion')
+      .innerJoin('calificacion.solicitud', 'solicitud')
+      .where('solicitud.id_trabajador = trabajador.id')
+      .andWhere('calificacion.tipo = :tipoPromedio')
+      .getQuery();
+
+    query
+      .addSelect(promedioSql, 'promedio_calificacion')
+      .setParameter('tipoPromedio', CalificacionTipo.CLIENTE_A_TRABAJADOR);
+
+    return { query, promedioSql };
+  }
+
+  private extraerPromedios(
+    filas: Array<{
+      trabajador_publico_id: number | string;
+      promedio_calificacion: number | string;
+    }>,
+  ): Map<number, number> {
+    const promedios = new Map<number, number>();
+    for (const fila of filas) {
+      promedios.set(
+        Number(fila.trabajador_publico_id),
+        Number(fila.promedio_calificacion) || 0,
+      );
+    }
+    return promedios;
+  }
+
+  private toTrabajadorBusqueda(
+    trabajador: Trabajador,
+    promedioCalificacion: number,
+  ): TrabajadorBusquedaDto {
+    const dto = new TrabajadorBusquedaDto();
+    dto.id = trabajador.id;
+    dto.nombres = trabajador.nombres;
+    dto.apellidoInicial = `${trabajador.apellidos.charAt(0)}.`;
+    dto.foto = trabajador.foto;
+    dto.nivelFormacion = trabajador.nivelFormacion;
+    dto.municipio = trabajador.municipio?.nombre ?? null;
+    dto.zona = trabajador.zona?.nombre ?? null;
+    dto.promedioCalificacion = promedioCalificacion;
+    dto.oficios = (trabajador.detallesPortafolio ?? []).map((detalle) => ({
+      id: detalle.id,
+      nombreOficio: detalle.portafolio.nombreOficio,
+      categoria: detalle.portafolio.categoria,
+      descripcionTrabajos: detalle.descripcionTrabajos,
+      aniosExperiencia: detalle.aniosExperiencia,
+    }));
+    dto.jornadas = [
+      ...new Set(
+        (trabajador.disponibilidades ?? []).map(
+          (disponibilidad) => disponibilidad.jornada,
+        ),
+      ),
+    ];
+    return dto;
+  }
+
   async update(id: number, dto: UpdateTrabajadorDto): Promise<Trabajador> {
     const trabajador = await this.findOne(id);
+    return this.actualizarFicha(trabajador, dto);
+  }
 
-    if (dto.email !== undefined && dto.email !== trabajador.email) {
-      await this.ensureEmailAvailable(dto.email, id);
-      trabajador.email = dto.email.trim();
-    }
+  private async actualizarFicha(
+    trabajador: Trabajador,
+    dto: UpdateTrabajadorDto,
+  ): Promise<Trabajador> {
     if (dto.numDoc !== undefined && dto.numDoc !== trabajador.numDoc) {
-      await this.ensureDocumentAvailable(dto.numDoc, id);
+      await this.ensureDocumentAvailable(dto.numDoc, trabajador.id);
       trabajador.numDoc = dto.numDoc.trim();
     }
 
@@ -135,16 +365,37 @@ export class TrabajadorService {
     }
 
     await this.trabajadorRepository.save(trabajador);
-    return this.findOne(id);
+    return this.findOne(trabajador.id);
   }
 
   async updateEstado(
     id: number,
     dto: UpdateEstadoTrabajadorDto,
   ): Promise<Trabajador> {
-    const trabajador = await this.findOne(id);
-    trabajador.estado = dto.estado;
-    await this.trabajadorRepository.save(trabajador);
+    await this.trabajadorRepository.manager.transaction(async (manager) => {
+      const trabajadorRepository = manager.getRepository(Trabajador);
+      const userRepository = manager.getRepository(User);
+      const trabajador = await trabajadorRepository.findOne({
+        where: { id },
+        relations: { usuario: true },
+      });
+      if (!trabajador) {
+        throw new NotFoundException(`Trabajador con ID ${id} no encontrado`);
+      }
+
+      trabajador.estado = dto.estado;
+      if (dto.estado === EstadoTrabajador.ACTIVO) {
+        trabajador.usuario.isActive = UserStatus.ACTIVO;
+        await userRepository.save(trabajador.usuario);
+      } else if (dto.estado === EstadoTrabajador.INACTIVO) {
+        trabajador.usuario.isActive = UserStatus.SUSPENDIDO;
+        await userRepository.save(trabajador.usuario);
+      } else {
+        trabajador.usuario.isActive = UserStatus.PENDIENTE;
+        await userRepository.save(trabajador.usuario);
+      }
+      await trabajadorRepository.save(trabajador);
+    });
     return this.findOne(id);
   }
 
@@ -164,6 +415,26 @@ export class TrabajadorService {
       );
     }
     return usuario;
+  }
+
+  private validarRolTrabajador(usuario: User): void {
+    if (usuario.role !== UserRole.TRABAJADOR) {
+      throw new ForbiddenException(
+        'Esta operación solo está disponible para trabajadores',
+      );
+    }
+  }
+
+  private async buscarFichaPorUsuario(userId: number): Promise<Trabajador> {
+    const ficha = await this.trabajadorRepository.findOneBy({
+      usuario: { id: userId },
+    });
+    if (!ficha) {
+      throw new NotFoundException(
+        'No tienes una ficha de trabajador registrada',
+      );
+    }
+    return ficha;
   }
 
   private async findMunicipio(id: number): Promise<Municipio> {
@@ -191,18 +462,6 @@ export class TrabajadorService {
       );
     }
     return zona;
-  }
-
-  private async ensureEmailAvailable(
-    email: string,
-    excludeId?: number,
-  ): Promise<void> {
-    const trabajador = await this.trabajadorRepository.findOneBy({
-      email: email.trim(),
-    });
-    if (trabajador && trabajador.id !== excludeId) {
-      throw new ConflictException('El email ya está registrado para otro trabajador');
-    }
   }
 
   private async ensureDocumentAvailable(

@@ -15,10 +15,13 @@ import { SolicitudDeServicioService } from './solicitud_de_servicio.service';
 import { CreateSolicitudDeServicioDto } from './dto/create-solicitud-de-servicio.dto';
 import { UpdateSolicitudDeServicioDto } from './dto/update-solicitud-de-servicio.dto';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
-import { SolicitudDeServicio } from './entities/solicitud-de-servicio.entity';
+import { SolicitudResponseDto } from './dto/solicitud-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User } from '../user/entities/user.entity';
+import { AsignarSolicitudDto } from './dto/asignar-solicitud.dto';
 
 /**
  * Controlador REST para la entidad `SolicitudDeServicio`.
@@ -33,51 +36,149 @@ export class SolicitudDeServicioController {
   constructor(private readonly service: SolicitudDeServicioService) {}
 
   // Crear una nueva solicitud (POST /solicitudes).
+  // El dueño se obtiene del token JWT, nunca del cuerpo de la petición.
   @Post()
   @Roles('admin', 'cliente')
-  @ApiCreatedResponse({ type: SolicitudDeServicio })
-  create(@Body() dto: CreateSolicitudDeServicioDto) {
-    return this.service.create(dto);
+  @ApiCreatedResponse({ type: SolicitudResponseDto })
+  create(
+    @Body() dto: CreateSolicitudDeServicioDto,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.create(dto, usuario);
   }
 
-  // Obtener todas las solicitudes (GET /solicitudes).
+  // Obtener todas las solicitudes (GET /solicitudes). Solo administradores.
   @Get()
-  @Roles('admin', 'trabajador')
-  @ApiOkResponse({ type: [SolicitudDeServicio] })
-  findAll() {
-    return this.service.findAll();
+  @Roles('admin')
+  @ApiOkResponse({ type: [SolicitudResponseDto] })
+  findAll(@GetUser() usuario: User) {
+    return this.service.findAll(usuario);
+  }
+
+  // Listar las solicitudes del usuario autenticado (GET /solicitudes/mias).
+  // Se declara antes de ':id' para que esa ruta no la capture.
+  @Get('mias')
+  @Roles('admin', 'cliente', 'trabajador')
+  @ApiOkResponse({ type: [SolicitudResponseDto] })
+  findMias(@GetUser() usuario: User) {
+    return this.service.findMias(usuario);
   }
 
   // Listar solicitudes de un usuario específico (GET /solicitudes/usuario/:idUsuario).
+  // Ruta reservada a administradores.
   @Get('usuario/:idUsuario')
+  @Roles('admin')
   @ApiParam({ name: 'idUsuario', example: 5, description: 'ID del usuario' })
-  @ApiOkResponse({ type: [SolicitudDeServicio] })
-  findByUser(@Param('idUsuario', ParseIntPipe) idUsuario: number) {
-    return this.service.findByUser(idUsuario);
+  @ApiOkResponse({ type: [SolicitudResponseDto] })
+  findByUser(
+    @Param('idUsuario', ParseIntPipe) idUsuario: number,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.findByUser(idUsuario, usuario);
+  }
+
+  @Post(':id/asignar')
+  @Roles('admin', 'cliente')
+  @ApiParam({ name: 'id', example: 12, description: 'ID de la solicitud' })
+  @ApiOkResponse({ type: SolicitudResponseDto })
+  asignar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AsignarSolicitudDto,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.asignar(id, dto.trabajadorId, usuario);
+  }
+
+  @Patch(':id/aceptar')
+  @Roles('trabajador')
+  @ApiParam({ name: 'id', example: 12, description: 'ID de la solicitud' })
+  @ApiOkResponse({ type: SolicitudResponseDto })
+  aceptar(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.aceptar(id, usuario);
+  }
+
+  @Patch(':id/rechazar')
+  @Roles('trabajador')
+  @ApiParam({ name: 'id', example: 12, description: 'ID de la solicitud' })
+  @ApiOkResponse({ type: SolicitudResponseDto })
+  rechazar(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.rechazar(id, usuario);
+  }
+
+  @Patch(':id/iniciar')
+  @Roles('trabajador')
+  @ApiParam({ name: 'id', example: 12, description: 'ID de la solicitud' })
+  @ApiOkResponse({ type: SolicitudResponseDto })
+  iniciar(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.iniciar(id, usuario);
+  }
+
+  @Patch(':id/completar')
+  @Roles('trabajador')
+  @ApiParam({ name: 'id', example: 12, description: 'ID de la solicitud' })
+  @ApiOkResponse({ type: SolicitudResponseDto })
+  completar(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.completar(id, usuario);
+  }
+
+  @Patch(':id/cancelar')
+  @Roles('admin', 'cliente')
+  @ApiParam({ name: 'id', example: 12, description: 'ID de la solicitud' })
+  @ApiOkResponse({ type: SolicitudResponseDto })
+  cancelar(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.cancelar(id, usuario);
   }
 
   // Obtener una solicitud por ID (GET /solicitudes/:id).
+  // El servicio valida el acceso según el rol del usuario autenticado.
   @Get(':id')
-  @Roles('admin')
+  @Roles('admin', 'cliente', 'trabajador')
   @ApiParam({ name: 'id', example: 12, description: 'ID de la solicitud' })
-  @ApiOkResponse({ type: SolicitudDeServicio })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+  @ApiOkResponse({ type: SolicitudResponseDto })
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.findOne(id, usuario);
   }
 
   // Actualizar una solicitud existente (PATCH /solicitudes/:id).
+  // Solo el dueño o un administrador pueden modificarla.
   @Patch(':id')
   @Roles('admin', 'cliente')
   @ApiParam({ name: 'id', example: 12, description: 'ID de la solicitud' })
-  @ApiOkResponse({ type: SolicitudDeServicio })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSolicitudDeServicioDto) {
-    return this.service.update(id, dto);
+  @ApiOkResponse({ type: SolicitudResponseDto })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateSolicitudDeServicioDto,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.update(id, dto, usuario);
   }
 
   // Eliminar una solicitud (DELETE /solicitudes/:id).
+  // Solo el dueño o un administrador pueden eliminarla.
   @Delete(':id')
   @Roles('admin', 'cliente')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
+    return this.service.remove(id, usuario);
   }
 }

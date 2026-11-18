@@ -1,7 +1,11 @@
-import { IsNotEmpty, IsString, IsEnum, IsInt, IsOptional, MaxLength } from 'class-validator';
-import { EstadoReporte } from '../enums/estado-reporte.enum';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsInt, MaxLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
+/**
+ * DTO para crear un reporte de incidente.
+ * El autor (`reportadoPor`) y el estado inicial (`ABIERTO`) se derivan en el
+ * servicio: nunca se aceptan desde el cuerpo de la petición.
+ */
 export class CreateReporteIncidenteDto {
   @ApiProperty({ example: 'El trabajador no se presentó en el horario acordado.' })
   @IsNotEmpty()
@@ -9,18 +13,8 @@ export class CreateReporteIncidenteDto {
   @MaxLength(5000)
   descripcion: string;
 
-  @ApiPropertyOptional({ enum: EstadoReporte, example: EstadoReporte.ABIERTO })
-  @IsOptional()
-  @IsEnum(EstadoReporte)
-  estado?: EstadoReporte;
-
   @ApiProperty({ example: 12, description: 'ID de la solicitud relacionada' })
   @IsNotEmpty()
   @IsInt()
   solicitudId: number;
-
-  @ApiPropertyOptional({ example: 'María Pérez' })
-  @IsOptional()
-  @IsString()
-  reportadoPor?: string;
 }

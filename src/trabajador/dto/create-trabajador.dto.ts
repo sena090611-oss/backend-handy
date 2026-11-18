@@ -1,5 +1,4 @@
 import {
-  IsEmail,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -53,10 +52,6 @@ export class CreateTrabajadorDto {
   @IsString({ message: 'La dirección debe ser texto' })
   @IsNotEmpty({ message: 'La dirección es obligatoria' })
   direccion: string;
-
-  @ApiProperty({ example: 'juan.gomez@handy.com' })
-  @IsEmail({}, { message: 'El email debe ser válido' })
-  email: string;
 
   @ApiProperty({ example: '3001234567', maxLength: 10 })
   @IsString({ message: 'El teléfono debe ser texto' })

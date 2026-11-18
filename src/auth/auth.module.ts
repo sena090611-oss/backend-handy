@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
+import type { StringValue } from 'ms';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
@@ -18,13 +19,21 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     // Configurar JWT leyendo el secreto y la expiración del .env
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService): JwtModuleOptions => ({
-        secret: configService.getOrThrow<string>('JWT_SECRET'),
-        signOptions: {
-          // Segundos; las variables de entorno siempre llegan como string
-          expiresIn: Number(configService.getOrThrow<string>('JWT_EXPIRATION')),
-        },
-      }),
+      useFactory: (configService: ConfigService): JwtModuleOptions => {
+        // JWT_EXPIRATION acepta segundos ('900') o intervalos de jsonwebtoken
+        // ('15m', '1d', ...). Si es solo dígitos se interpreta en segundos
+        // (formato original); si no, se pasa tal cual a jsonwebtoken.
+        const rawExpiration: string =
+          configService.getOrThrow<string>('JWT_EXPIRATION');
+        // Segundos si son solo dígitos; intervalos ('15m', '1d') tal cual.
+        const expiresIn: number | StringValue = /^\d+$/.test(rawExpiration)
+          ? Number(rawExpiration)
+          : (rawExpiration as StringValue);
+        return {
+          secret: configService.getOrThrow<string>('JWT_SECRET'),
+          signOptions: { expiresIn },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

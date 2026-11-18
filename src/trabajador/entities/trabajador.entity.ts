@@ -74,10 +74,6 @@ export class Trabajador {
   @Column({ name: 'direccion' })
   direccion: string;
 
-  @ApiProperty({ example: 'juan.gomez@handy.com' })
-  @Column({ name: 'email', unique: true })
-  email: string;
-
   @ApiProperty({ example: '3001234567' })
   @Column({ name: 'telefono', type: 'varchar', length: 10 })
   telefono: string;

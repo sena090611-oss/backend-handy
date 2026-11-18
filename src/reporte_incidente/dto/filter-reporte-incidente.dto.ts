@@ -1,10 +1,13 @@
 import { IsOptional, IsInt, IsEnum, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
 import { EstadoReporte } from '../enums/estado-reporte.enum';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class FilterReporteIncidenteDto {
   @ApiPropertyOptional({ example: 12 })
   @IsOptional()
+  // Los parámetros de query string llegan como texto; los convertimos a número.
+  @Type(() => Number)
   @IsInt()
   solicitudId?: number;
 

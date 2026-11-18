@@ -10,6 +10,13 @@ import {
   AuthResponse,
   RegisterResponse,
 } from './interfaces/auth-response.interface';
+import { ChangePasswordDto } from './dto/change-password.dto';
+
+// Hash bcrypt falso (de una credencial inexistente). Se usa cuando el email
+// no existe para ejecutar bcrypt.compare igualmente y que el tiempo de
+// respuesta sea similar, evitando enumerar usuarios válidos por timing.
+const BCRYPT_HASH_FALSO =
+  '$2b$10$sDiIDnW8owzvJ84HvFMFnuXmuAb1xot2CzWxeT1s4H3.h/fFgykO6';
 
 @Injectable()
 export class AuthService {
@@ -48,8 +55,11 @@ export class AuthService {
     // Buscar usuario por email (incluye password); puede ser null
     const user: User | null = await this.userService.findOneByEmail(email);
 
-    // Verificar si el usuario existe
+    // Verificar si el usuario existe. Si no existe, se ejecuta igualmente una
+    // comparación bcrypt contra un hash falso para igualar el tiempo de
+    // respuesta y no revelar por timing si el email está registrado.
     if (!user) {
+      await bcrypt.compare(password, BCRYPT_HASH_FALSO);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
@@ -70,6 +80,17 @@ export class AuthService {
     }
 
     return await this.buildAuthResponse(user);
+  }
+
+  async changePassword(
+    user: User,
+    dto: ChangePasswordDto,
+  ): Promise<void> {
+    await this.userService.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   /**

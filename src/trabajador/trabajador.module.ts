@@ -7,10 +7,22 @@ import { TrabajadorController } from './trabajador.controller';
 import { Trabajador } from './entities/trabajador.entity';
 // Importa Calificacion para usar su repositorio en el módulo del trabajador
 import { Calificacion } from '../calificacion/entities/calificacion.entity';
+import { Disponibilidad } from '../disponibilidad/entities/disponibilidad.entity';
+import { DetallePortafolio } from '../detalle_portafolio/detalle_portafolio/entities/detalle-portafolio.entity';
 import { TrabajadorService } from './trabajador.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Trabajador, User, Zona, Municipio, Calificacion])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Trabajador,
+      User,
+      Zona,
+      Municipio,
+      Calificacion,
+      Disponibilidad,
+      DetallePortafolio,
+    ]),
+  ],
   controllers: [TrabajadorController],
   providers: [TrabajadorService],
 })

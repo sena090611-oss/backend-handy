@@ -32,14 +32,18 @@ import {
   ApiParam, // Documenta un parámetro de ruta.
   ApiTags, // Agrupa los endpoints bajo una etiqueta en Swagger.
 } from '@nestjs/swagger';
-// Entidad que representa un reporte de incidente en la base de datos.
-import { ReporteIncidente } from './entities/reporte-incidente.entity';
+// DTO de respuesta seguro para reportes de incidentes.
+import { ReporteIncidenteResponseDto } from './dto/reporte-incidente-response.dto';
 // Guard que exige un token JWT válido (usuario autenticado).
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 // Guard que valida que el usuario tenga alguno de los roles permitidos.
 import { RolesGuard } from '../auth/guards/roles.guard';
 // Decorador para indicar los roles autorizados en cada endpoint.
 import { Roles } from '../auth/decorators/roles.decorator';
+// Decorador para obtener el usuario autenticado desde el token JWT.
+import { GetUser } from '../auth/decorators/get-user.decorator';
+// Entidad del usuario autenticado.
+import { User } from '../user/entities/user.entity';
 
 // Ruta base del controlador: /reporte-incidente.
 @Controller('reporte-incidente')
@@ -53,54 +57,71 @@ export class ReporteIncidenteController {
   constructor(private readonly service: ReporteIncidenteService) {}
 
   // Crear un nuevo reporte de incidente (POST /reporte-incidente).
-  // Solo los roles `cliente` y `admin` pueden crear reportes.
+  // Solo los participantes de la solicitud o un admin pueden crear reportes.
   @Post()
-  @Roles('cliente', 'admin')
-  @ApiCreatedResponse({ type: ReporteIncidente })
-  create(@Body() dto: CreateReporteIncidenteDto) {
+  @Roles('cliente', 'trabajador', 'admin')
+  @ApiCreatedResponse({ type: ReporteIncidenteResponseDto })
+  create(
+    @Body() dto: CreateReporteIncidenteDto,
+    @GetUser() usuario: User,
+  ) {
     // Delegamos la creación al servicio y devolvemos el registro creado.
-    return this.service.create(dto);
+    return this.service.create(dto, usuario);
   }
 
   // Listar reportes aplicando filtros opcionales (GET /reporte-incidente).
-  // Disponible para todos los usuarios autenticados (todos los roles).
+  // El servicio limita el listado a las solicitudes del usuario autenticado.
   @Get()
   @Roles('trabajador', 'cliente', 'admin')
-  @ApiOkResponse({ type: [ReporteIncidente] })
-  findAll(@Query() filter: FilterReporteIncidenteDto) {
-    // Enviamos los filtros recibidos por query string al servicio.
-    return this.service.findAll(filter);
+  @ApiOkResponse({ type: [ReporteIncidenteResponseDto] })
+  findAll(
+    @Query() filter: FilterReporteIncidenteDto,
+    @GetUser() usuario: User,
+  ) {
+    // Enviamos los filtros y el usuario autenticado al servicio.
+    return this.service.findAll(filter, usuario);
   }
 
   // Obtener un reporte por su ID (GET /reporte-incidente/:id).
-  // Disponible para todos los usuarios autenticados (todos los roles).
+  // El servicio valida que el usuario participe en la solicitud asociada.
   @Get(':id')
   @Roles('trabajador', 'cliente', 'admin')
   @ApiParam({ name: 'id', example: 3, description: 'ID del reporte' })
-  @ApiOkResponse({ type: ReporteIncidente })
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  @ApiOkResponse({ type: ReporteIncidenteResponseDto })
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
     // Buscamos el reporte por ID; si no existe, el servicio lanza la excepción.
-    return this.service.findOne(id);
+    return this.service.findOne(id, usuario);
   }
 
   // Actualizar un reporte existente (PATCH /reporte-incidente/:id).
-  // Solo los roles `cliente` y `admin` pueden actualizar reportes.
+  // Solo el admin o el autor (mientras esté ABIERTO) pueden actualizarlo.
+  // El estado solo lo puede cambiar un admin (validado en el servicio).
   @Patch(':id')
-  @Roles('cliente', 'admin')
+  @Roles('cliente', 'trabajador', 'admin')
   @ApiParam({ name: 'id', example: 3, description: 'ID del reporte' })
-  @ApiOkResponse({ type: ReporteIncidente })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateReporteIncidenteDto) {
-    // Actualizamos solo los campos enviados en el DTO y devolvemos el resultado.
-    return this.service.update(id, dto);
+  @ApiOkResponse({ type: ReporteIncidenteResponseDto })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateReporteIncidenteDto,
+    @GetUser() usuario: User,
+  ) {
+    // Actualizamos solo los campos permitidos y devolvemos el resultado.
+    return this.service.update(id, dto, usuario);
   }
 
   // Eliminar un reporte (DELETE /reporte-incidente/:id).
-  // Solo los roles `cliente` y `admin` pueden eliminar reportes.
+  // Solo el admin o el autor (mientras esté ABIERTO) pueden eliminarlo.
   @Delete(':id')
-  @Roles('cliente', 'admin')
-  @ApiOkResponse({ type: ReporteIncidente })
-  remove(@Param('id', ParseIntPipe) id: number) {
+  @Roles('cliente', 'trabajador', 'admin')
+  @ApiOkResponse({ type: ReporteIncidenteResponseDto })
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() usuario: User,
+  ) {
     // Eliminamos el reporte indicado y retornamos la confirmación del servicio.
-    return this.service.remove(id);
+    return this.service.remove(id, usuario);
   }
 }
